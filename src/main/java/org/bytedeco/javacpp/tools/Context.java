@@ -28,14 +28,14 @@ import java.util.List;
 import java.util.Map;
 
 /**
- *
  * @author Samuel Audet
  */
-class Context {
-    Context() {
+public class Context {
+    public Context() {
         usingList = new ArrayList<String>();
-        namespaceMap = new HashMap<String,String>();
+        namespaceMap = new HashMap<String, String>();
     }
+
     Context(Context c) {
         namespace = c.namespace;
         baseType = c.baseType;
@@ -49,27 +49,29 @@ class Context {
         namespaceMap = c.namespaceMap;
     }
 
-    String namespace = null;
-    String baseType = null;
-    String cppName = null;
-    String javaName = null;
-    boolean inaccessible = false;
-    boolean objectify = false;
-    boolean virtualize = false;
-    Declarator variable = null;
-    InfoMap infoMap = null;
-    TemplateMap templateMap = null;
-    List<String> usingList = null;
-    Map<String,String> namespaceMap = null;
+    public String namespace = null;
+    public String baseType = null;
+    public String cppName = null;
+    public String javaName = null;
+    public boolean inaccessible = false;
+    public boolean objectify = false;
+    public boolean virtualize = false;
+    public Declarator variable = null;
+    public InfoMap infoMap = null;
+    public TemplateMap templateMap = null;
+    public List<String> usingList = null;
+    public Map<String, String> namespaceMap = null;
 
-    /** Return all likely combinations of namespaces and template arguments for this C++ type */
+    /**
+     * Return all likely combinations of namespaces and template arguments for this C++ type
+     */
     String[] qualify(String cppName) {
         if (cppName == null || cppName.length() == 0) {
             return new String[0];
         }
         if (cppName.startsWith("::")) {
             // already in global namespace, so strip leading operator
-            return new String[] { cppName.substring(2) };
+            return new String[]{cppName.substring(2)};
         }
         for (Map.Entry<String, String> e : namespaceMap.entrySet()) {
             cppName = cppName.replaceAll(e.getKey() + "::", e.getValue() + "::");
@@ -112,7 +114,9 @@ class Context {
         return names.toArray(new String[names.size()]);
     }
 
-    /** Shorten a qualified Java name, given the Context */
+    /**
+     * Shorten a qualified Java name, given the Context
+     */
     String shorten(String javaName) {
         if (this.javaName != null) {
             int lastDot = 0;

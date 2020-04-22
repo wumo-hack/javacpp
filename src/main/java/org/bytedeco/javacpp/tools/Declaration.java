@@ -23,13 +23,12 @@
 package org.bytedeco.javacpp.tools;
 
 /**
- *
  * @author Samuel Audet
  */
-class Declaration {
-    Type type = null;
-    Declarator declarator = null;
-    boolean abstractMember = false, constMember = false, inaccessible = false,
+public class Declaration {
+    public Type type = null;
+    public Declarator declarator = null;
+    public boolean abstractMember = false, constMember = false, inaccessible = false,
             incomplete = false, function = false, variable = false, comment = false;
-    String signature = "", text = "";
+    public String signature = "", text = "";
 }

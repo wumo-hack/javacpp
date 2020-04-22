@@ -37,6 +37,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
 import org.bytedeco.javacpp.ClassProperties;
 import org.bytedeco.javacpp.Loader;
 
@@ -59,23 +60,24 @@ import org.bytedeco.javacpp.Loader;
  * - Inherit constructors from helper classes, if possible
  * - etc.
  *
+ * @author Samuel Audet
  * @see Info
  * @see InfoMap
  * @see InfoMapper
- *
- * @author Samuel Audet
  */
 public class Parser {
 
     public Parser(Logger logger, Properties properties) {
         this(logger, properties, null, null);
     }
+
     public Parser(Logger logger, Properties properties, String encoding, String lineSeparator) {
         this.logger = logger;
         this.properties = properties;
         this.encoding = encoding;
         this.lineSeparator = lineSeparator;
     }
+
     Parser(Parser p, String text) {
         this.logger = p.logger;
         this.properties = p.properties;
@@ -86,13 +88,13 @@ public class Parser {
         this.lineSeparator = p.lineSeparator;
     }
 
-    final Logger logger;
-    final Properties properties;
-    final String encoding;
-    InfoMap infoMap = null;
-    InfoMap leafInfoMap = null;
-    TokenIndexer tokens = null;
-    String lineSeparator = null;
+    protected final Logger logger;
+    protected final Properties properties;
+    protected final String encoding;
+    protected InfoMap infoMap = null;
+    protected InfoMap leafInfoMap = null;
+    protected TokenIndexer tokens = null;
+    protected String lineSeparator = null;
 
     String translate(String text) {
         Info info = infoMap.getFirst(text);
@@ -128,7 +130,7 @@ public class Parser {
         return text;
     }
 
-    void containers(Context context, DeclarationList declList) throws ParserException {
+    protected void containers(Context context, DeclarationList declList) throws ParserException {
         List<String> basicContainers = new ArrayList<String>();
         for (Info info : infoMap.get("basic/containers")) {
             basicContainers.addAll(Arrays.asList(info.cppTypes));
@@ -239,16 +241,16 @@ public class Parser {
                         + "    /** Pointer cast constructor. Invokes {@link Pointer#Pointer(Pointer)}. */\n"
                         + "    public " + containerType.javaName + "(Pointer p) { super(p); }\n";
                 if (!constant && (dim == 0 || (containerType.arguments.length == 1 && indexType != null)) && firstType != null && secondType != null) {
-                    String[] firstNames = firstType.javaNames != null ? firstType.javaNames : new String[] {firstType.javaName};
-                    String[] secondNames = secondType.javaNames != null ? secondType.javaNames : new String[] {secondType.javaName};
+                    String[] firstNames = firstType.javaNames != null ? firstType.javaNames : new String[]{firstType.javaName};
+                    String[] secondNames = secondType.javaNames != null ? secondType.javaNames : new String[]{secondType.javaName};
                     String brackets = arrayBrackets + (dim > 0 ? "[]" : "");
                     for (int n = 0; n < firstNames.length || n < secondNames.length; n++) {
                         decl.text += "    public " + containerType.javaName + "(" + firstNames[Math.min(n, firstNames.length - 1)] + brackets + " firstValue, "
-                                                                                  + secondNames[Math.min(n, secondNames.length - 1)] + brackets + " secondValue) "
-                                  +  "{ this(" + (dim > 0 ? "Math.min(firstValue.length, secondValue.length)" : "") + "); put(firstValue, secondValue); }\n";
+                                + secondNames[Math.min(n, secondNames.length - 1)] + brackets + " secondValue) "
+                                + "{ this(" + (dim > 0 ? "Math.min(firstValue.length, secondValue.length)" : "") + "); put(firstValue, secondValue); }\n";
                     }
                 } else if (resizable && firstType == null && secondType == null) {
-                    for (String javaName : valueType.javaNames != null ? valueType.javaNames : new String[] {valueType.javaName}) {
+                    for (String javaName : valueType.javaNames != null ? valueType.javaNames : new String[]{valueType.javaName}) {
                         if (dim < 2 && !javaName.equals("int") && !javaName.equals("long")) {
                             decl.text += "    public " + containerType.javaName + "(" + javaName + " value) { this(1); put(0, value); }\n";
                         }
@@ -256,39 +258,39 @@ public class Parser {
                     }
                 }
                 decl.text += "    public " + containerType.javaName + "()       { allocate();  }\n" + (!resizable ? ""
-                           : "    public " + containerType.javaName + "(long n) { allocate(n); }\n")
-                           + "    private native void allocate();\n"                                + (!resizable ? ""
-                           : "    private native void allocate(@Cast(\"size_t\") long n);\n")       + (constant   ? "\n\n"
-                           : "    public native @Name(\"operator =\") @ByRef " + containerType.javaName + " put(@ByRef " + containerType.annotations + containerType.javaName + " x);\n\n");
+                        : "    public " + containerType.javaName + "(long n) { allocate(n); }\n")
+                        + "    private native void allocate();\n" + (!resizable ? ""
+                        : "    private native void allocate(@Cast(\"size_t\") long n);\n") + (constant ? "\n\n"
+                        : "    public native @Name(\"operator =\") @ByRef " + containerType.javaName + " put(@ByRef " + containerType.annotations + containerType.javaName + " x);\n\n");
 
                 for (int i = 0; i < dim; i++) {
-                    String indexAnnotation = i > 0 ? ("@Index(" + (i > 1 ? "value = " + i + ", " : "" ) + "function = \"at\") ") : "";
+                    String indexAnnotation = i > 0 ? ("@Index(" + (i > 1 ? "value = " + i + ", " : "") + "function = \"at\") ") : "";
                     String indices = "", indices2 = "", separator = "";
                     for (int j = 0; indexType != null && j < i; j++) {
-                        indices += separator + indexType.annotations + indexType.javaName + " " + (char)('i' + j);
-                        indices2 += separator + (char)('i' + j);
+                        indices += separator + indexType.annotations + indexType.javaName + " " + (char) ('i' + j);
+                        indices2 += separator + (char) ('i' + j);
                         separator = ", ";
                     }
 
                     decl.text += "    public boolean empty(" + indices + ") { return size(" + indices2 + ") == 0; }\n"
-                               + "    public native " + indexAnnotation + "long size(" + indices + ");\n"  + (!resizable ? ""
-                               : "    public void clear(" + indices + ") { resize(" + indices2 + separator + "0); }\n"
-                               + "    public native " + indexAnnotation + "void resize(" + indices + separator + "@Cast(\"size_t\") long n);\n");
+                            + "    public native " + indexAnnotation + "long size(" + indices + ");\n" + (!resizable ? ""
+                            : "    public void clear(" + indices + ") { resize(" + indices2 + separator + "0); }\n"
+                            + "    public native " + indexAnnotation + "void resize(" + indices + separator + "@Cast(\"size_t\") long n);\n");
                 }
 
                 String params = "", separator = "";
                 for (int i = 0; indexType != null && i < dim; i++) {
-                    params += separator + indexType.annotations + indexType.javaName + " " + (char)('i' + i);
+                    params += separator + indexType.annotations + indexType.javaName + " " + (char) ('i' + i);
                     separator = ", ";
                 }
 
                 if ((dim == 0 || indexType != null) && firstType != null && secondType != null) {
                     String indexAnnotation = dim == 0 ? "@MemberGetter " : "@Index(" + (dim > 1 ? "value = " + dim + ", " : "") + "function = \"at\") ";
                     decl.text += "\n"
-                              +  "    " + indexAnnotation + "public native " + firstType.annotations + firstType.javaName + " first(" + params + ");"
-                              +  " public native " + containerType.javaName + " first(" + params + separator + firstType.javaName.substring(firstType.javaName.lastIndexOf(' ') + 1) + " first);\n"
-                              +  "    " + indexAnnotation + "public native " + secondType.annotations + secondType.javaName + " second(" + params + "); "
-                              +  " public native " + containerType.javaName + " second(" + params + separator + secondType.javaName.substring(secondType.javaName.lastIndexOf(' ') + 1) + " second);\n";
+                            + "    " + indexAnnotation + "public native " + firstType.annotations + firstType.javaName + " first(" + params + ");"
+                            + " public native " + containerType.javaName + " first(" + params + separator + firstType.javaName.substring(firstType.javaName.lastIndexOf(' ') + 1) + " first);\n"
+                            + "    " + indexAnnotation + "public native " + secondType.annotations + secondType.javaName + " second(" + params + "); "
+                            + " public native " + containerType.javaName + " second(" + params + separator + secondType.javaName.substring(secondType.javaName.lastIndexOf(' ') + 1) + " second);\n";
                     for (int i = 1; !constant && firstType.javaNames != null && i < firstType.javaNames.length; i++) {
                         decl.text += "    @MemberSetter @Index" + indexFunction + " public native " + containerType.javaName + " first(" + params + separator + firstType.annotations + firstType.javaNames[i] + " first);\n";
                     }
@@ -298,7 +300,7 @@ public class Parser {
                 } else {
                     if (indexType != null) {
                         decl.text += "\n"
-                                  +  "    @Index" + indexFunction + " public native " + valueType.annotations + valueType.javaName + " get(" + params + ");\n";
+                                + "    @Index" + indexFunction + " public native " + valueType.annotations + valueType.javaName + " get(" + params + ");\n";
                         if (!constant) {
                             decl.text += "    public native " + containerType.javaName + " put(" + params + separator + valueType.javaName.substring(valueType.javaName.lastIndexOf(' ') + 1) + " value);\n";
                         }
@@ -311,10 +313,10 @@ public class Parser {
                         if (!constant) {
                             if (list) {
                                 decl.text += "    public native @ByVal Iterator insert(@ByVal Iterator pos, " + valueType.annotations + valueType.javaName + " value);\n"
-                                          +  "    public native @ByVal Iterator erase(@ByVal Iterator pos);\n";
+                                        + "    public native @ByVal Iterator erase(@ByVal Iterator pos);\n";
                             } else if (indexType == null) {
                                 decl.text += "    public native void insert(" + valueType.annotations + valueType.javaName + " value);\n"
-                                          +  "    public native void erase(" + valueType.annotations + valueType.javaName + " value);\n";
+                                        + "    public native void erase(" + valueType.annotations + valueType.javaName + " value);\n";
                             }
                             // XXX: else need to figure out something for maps
                         }
@@ -325,33 +327,33 @@ public class Parser {
                             valueType.annotations += "@Const ";
                         }
                         decl.text += "    public native @ByVal Iterator begin();\n"
-                                  +  "    public native @ByVal Iterator end();\n"
-                                  +  "    @NoOffset @Name(\"iterator\") public static class Iterator extends Pointer {\n"
-                                  +  "        public Iterator(Pointer p) { super(p); }\n"
-                                  +  "        public Iterator() { }\n\n"
+                                + "    public native @ByVal Iterator end();\n"
+                                + "    @NoOffset @Name(\"iterator\") public static class Iterator extends Pointer {\n"
+                                + "        public Iterator(Pointer p) { super(p); }\n"
+                                + "        public Iterator() { }\n\n"
 
-                                  +  "        public native @Name(\"operator ++\") @ByRef Iterator increment();\n"
-                                  +  "        public native @Name(\"operator ==\") boolean equals(@ByRef Iterator it);\n"
-                                  +  (containerType.arguments.length > 1 ?
-                                         "        public native @Name(\"operator *().first\") @MemberGetter " + indexType.annotations + indexType.javaName + " first();\n"
-                                       + "        public native @Name(\"operator *().second\") @MemberGetter " + valueType.annotations + valueType.javaName + " second();\n"
-                                  :
-                                         "        public native @Name(\"operator *\") " + valueType.annotations + valueType.javaName + " get();\n")
-                                  +  "    }\n";
+                                + "        public native @Name(\"operator ++\") @ByRef Iterator increment();\n"
+                                + "        public native @Name(\"operator ==\") boolean equals(@ByRef Iterator it);\n"
+                                + (containerType.arguments.length > 1 ?
+                                "        public native @Name(\"operator *().first\") @MemberGetter " + indexType.annotations + indexType.javaName + " first();\n"
+                                        + "        public native @Name(\"operator *().second\") @MemberGetter " + valueType.annotations + valueType.javaName + " second();\n"
+                                :
+                                "        public native @Name(\"operator *\") " + valueType.annotations + valueType.javaName + " get();\n")
+                                + "    }\n";
                     }
                     if (resizable) {
                         valueType.javaName = valueType.javaName.substring(valueType.javaName.lastIndexOf(' ') + 1); // get rid of any annotations
 
                         decl.text += "\n"
-                                  +  "    public " + valueType.javaName + arrayBrackets + "[] get() {\n";
+                                + "    public " + valueType.javaName + arrayBrackets + "[] get() {\n";
                         String indent = "        ", indices = "", args = "", brackets = arrayBrackets;
                         separator = "";
                         for (int i = 0; i < dim; i++) {
-                            char c = (char)('i' + i);
+                            char c = (char) ('i' + i);
                             decl.text +=
                                     indent + (i == 0 ? valueType.javaName + brackets + "[] " : "") + "array" + indices + " = new " + valueType.javaName
-                                                + "[size(" + args + ") < Integer.MAX_VALUE ? (int)size(" + args + ") : Integer.MAX_VALUE]" + brackets + ";\n" +
-                                    indent + "for (int " + c + " = 0; " + c + " < array" + indices + ".length; " + c + "++) {\n";
+                                            + "[size(" + args + ") < Integer.MAX_VALUE ? (int)size(" + args + ") : Integer.MAX_VALUE]" + brackets + ";\n" +
+                                            indent + "for (int " + c + " = 0; " + c + " < array" + indices + ".length; " + c + "++) {\n";
                             indent += "    ";
                             indices += "[" + c + "]";
                             args += separator + c;
@@ -364,16 +366,16 @@ public class Parser {
                             decl.text += indent + "}\n";
                         }
                         decl.text += "        return array;\n"
-                                  +  "    }\n"
-                                  +  "    @Override public String toString() {\n"
-                                  +  "        return java.util.Arrays." + (dim < 2 ? "toString" : "deepToString" ) + "(get());\n"
-                                  +  "    }\n";
+                                + "    }\n"
+                                + "    @Override public String toString() {\n"
+                                + "        return java.util.Arrays." + (dim < 2 ? "toString" : "deepToString") + "(get());\n"
+                                + "    }\n";
                     }
                 }
 
                 if (!constant && (dim == 0 || (containerType.arguments.length == 1 && indexType != null)) && firstType != null && secondType != null) {
-                    String[] firstNames = firstType.javaNames != null ? firstType.javaNames : new String[] {firstType.javaName};
-                    String[] secondNames = secondType.javaNames != null ? secondType.javaNames : new String[] {secondType.javaName};
+                    String[] firstNames = firstType.javaNames != null ? firstType.javaNames : new String[]{firstType.javaName};
+                    String[] secondNames = secondType.javaNames != null ? secondType.javaNames : new String[]{secondType.javaName};
                     String brackets = arrayBrackets + (dim > 0 ? "[]" : "");
                     for (int n = 0; n < firstNames.length || n < secondNames.length; n++) {
                         String firstName = firstNames[Math.min(n, firstNames.length - 1)];
@@ -381,61 +383,61 @@ public class Parser {
                         firstName = firstName.substring(firstName.lastIndexOf(' ') + 1); // get rid of any annotations
                         secondName = secondName.substring(secondName.lastIndexOf(' ') + 1);
                         decl.text += "\n"
-                                  +  "    public " + containerType.javaName + " put(" + firstName + brackets + " firstValue, "
-                                                                                     + secondName + brackets + " secondValue) {\n";
+                                + "    public " + containerType.javaName + " put(" + firstName + brackets + " firstValue, "
+                                + secondName + brackets + " secondValue) {\n";
                         String indent = "        ", indices = "", args = "";
                         separator = "";
                         for (int i = 0; i < dim; i++) {
-                            char c = (char)('i' + i);
+                            char c = (char) ('i' + i);
                             decl.text +=
                                     indent + "for (int " + c + " = 0; " + c + " < firstValue" + indices + ".length && "
-                                                                        + c + " < secondValue" + indices + ".length; " + c + "++) {\n";
+                                            + c + " < secondValue" + indices + ".length; " + c + "++) {\n";
                             indent += "    ";
                             indices += "[" + c + "]";
                             args += separator + c;
                             separator = ", ";
                         }
                         decl.text += indent + "first(" + args + separator + "firstValue" + indices + ");\n"
-                                  +  indent + "second(" + args + separator + "secondValue" + indices + ");\n";
+                                + indent + "second(" + args + separator + "secondValue" + indices + ");\n";
                         for (int i = 0; i < dim; i++) {
                             indent = indent.substring(4);
                             decl.text += indent + "}\n";
                         }
                         decl.text += "        return this;\n"
-                                  +  "    }\n";
+                                + "    }\n";
                     }
                 } else if (resizable && firstType == null && secondType == null) {
                     boolean first = true;
-                    for (String javaName : valueType.javaNames != null ? valueType.javaNames : new String[] {valueType.javaName}) {
+                    for (String javaName : valueType.javaNames != null ? valueType.javaNames : new String[]{valueType.javaName}) {
                         javaName = javaName.substring(javaName.lastIndexOf(' ') + 1); // get rid of any annotations
                         decl.text += "\n";
                         if (dim < 2) {
                             if (first) {
                                 decl.text += "    public " + javaName + " pop_back() {\n"
-                                          +  "        long size = size();\n"
-                                          +  "        " + javaName + " value = get(size - 1);\n"
-                                          +  "        resize(size - 1);\n"
-                                          +  "        return value;\n"
-                                          +  "    }\n";
+                                        + "        long size = size();\n"
+                                        + "        " + javaName + " value = get(size - 1);\n"
+                                        + "        resize(size - 1);\n"
+                                        + "        return value;\n"
+                                        + "    }\n";
                             }
                             decl.text += "    public " + containerType.javaName + " push_back(" + javaName + " value) {\n"
-                                      +  "        long size = size();\n"
-                                      +  "        resize(size + 1);\n"
-                                      +  "        return put(size, value);\n"
-                                      +  "    }\n"
-                                      +  "    public " + containerType.javaName + " put(" + javaName + " value) {\n"
-                                      +  "        if (size() != 1) { resize(1); }\n"
-                                      +  "        return put(0, value);\n"
-                                      +  "    }\n";
+                                    + "        long size = size();\n"
+                                    + "        resize(size + 1);\n"
+                                    + "        return put(size, value);\n"
+                                    + "    }\n"
+                                    + "    public " + containerType.javaName + " put(" + javaName + " value) {\n"
+                                    + "        if (size() != 1) { resize(1); }\n"
+                                    + "        return put(0, value);\n"
+                                    + "    }\n";
                         }
                         decl.text += "    public " + containerType.javaName + " put(" + javaName + arrayBrackets + " ... array) {\n";
                         String indent = "        ", indices = "", args = "";
                         separator = "";
                         for (int i = 0; i < dim; i++) {
-                            char c = (char)('i' + i);
+                            char c = (char) ('i' + i);
                             decl.text +=
                                     indent + "if (size(" + args + ") != array" + indices + ".length) { resize(" + args + separator + "array" + indices + ".length); }\n" +
-                                    indent + "for (int " + c + " = 0; " + c + " < array" + indices + ".length; " + c + "++) {\n";
+                                            indent + "for (int " + c + " = 0; " + c + " < array" + indices + ".length; " + c + "++) {\n";
                             indent += "    ";
                             indices += "[" + c + "]";
                             args += separator + c;
@@ -447,7 +449,7 @@ public class Parser {
                             decl.text += indent + "}\n";
                         }
                         decl.text += "        return this;\n"
-                                  +  "    }\n";
+                                + "    }\n";
                         first = false;
                     }
                 }
@@ -661,11 +663,11 @@ public class Parser {
             } else if (token.match(Token.VIRTUAL)) {
                 type.virtual = true;
             } else if (token.match(Token.AUTO, Token.ENUM, Token.EXPLICIT, Token.EXTERN, Token.INLINE, Token.CLASS, Token.FINAL,
-                                   Token.INTERFACE, Token.__INTERFACE, Token.MUTABLE, Token.NAMESPACE, Token.STRUCT, Token.UNION,
-                                   Token.TYPENAME, Token.REGISTER, Token.THREAD_LOCAL, Token.VOLATILE)) {
+                    Token.INTERFACE, Token.__INTERFACE, Token.MUTABLE, Token.NAMESPACE, Token.STRUCT, Token.UNION,
+                    Token.TYPENAME, Token.REGISTER, Token.THREAD_LOCAL, Token.VOLATILE)) {
                 token = tokens.next();
                 continue;
-            } else if (token.match((Object[])infoMap.getFirst("basic/types").cppTypes) && (type.cppName.length() == 0 || type.simple)) {
+            } else if (token.match((Object[]) infoMap.getFirst("basic/types").cppTypes) && (type.cppName.length() == 0 || type.simple)) {
                 type.cppName += token.value + " ";
                 type.simple = true;
             } else if (token.match(Token.IDENTIFIER)) {
@@ -774,7 +776,7 @@ public class Parser {
         String[] names = context.qualify(type.cppName);
         if (definition && names.length > 0) {
             String constName = type.constValue ? "const " + names[0] : names[0];
-                   constName = type.constPointer ? constName + " const" : constName;
+            constName = type.constPointer ? constName + " const" : constName;
             info = infoMap.getFirst(constName, false);
             type.cppName = names[0];
         } else {
@@ -791,7 +793,7 @@ public class Parser {
                     continue;
                 }
                 String constName = type.constValue ? "const " + name : name;
-                       constName = type.constPointer ? constName + " const" : constName;
+                constName = type.constPointer ? constName + " const" : constName;
                 if ((info = infoMap.getFirst(constName, false)) != null) {
                     type.cppName = name;
                     break;
@@ -846,7 +848,7 @@ public class Parser {
             } else if (info.javaNames != null && info.javaNames.length > 0) {
                 type.javaName = info.javaNames[0];
                 type.javaNames = info.javaNames;
-           }
+            }
         }
 
         if (type.operator) {
@@ -895,7 +897,7 @@ public class Parser {
     }
 
     Declarator declarator(Context context, String defaultName, int infoNumber, boolean useDefaults,
-            int varNumber, boolean arrayAsPointer, boolean pointerAsArray) throws ParserException {
+                          int varNumber, boolean arrayAsPointer, boolean pointerAsArray) throws ParserException {
         boolean typedef = tokens.get().match(Token.TYPEDEF);
         boolean using = tokens.get().match(Token.USING);
         Declarator dcl = new Declarator();
@@ -908,9 +910,9 @@ public class Parser {
         // pick the requested identifier out of the statement in the case of multiple variable declaractions
         int count = 0, number = 0;
         for (Token token = tokens.get(); number < varNumber && !token.match(Token.EOF); token = tokens.next()) {
-            if (token.match('(','[','{')) {
+            if (token.match('(', '[', '{')) {
                 count++;
-            } else if (token.match(')',']','}')) {
+            } else if (token.match(')', ']', '}')) {
                 count--;
             } else if (count > 0) {
                 continue;
@@ -1208,7 +1210,7 @@ public class Parser {
         boolean valueType = false, needCast = arrayAsPointer && dcl.indices > 1, implicitConst = false;
         Info constInfo = infoMap.getFirst("const " + type.cppName, false);
         Info info = type.constValue && dcl.indirections < 2 && !dcl.reference ? constInfo
-                  : infoMap.getFirst(type.cppName, false);
+                : infoMap.getFirst(type.cppName, false);
         if ((!typedef || dcl.parameters != null)
                 && (constInfo == null || (constInfo.cppTypes != null && constInfo.cppTypes.length > 0))
                 && (info == null || (info.cppTypes != null && info.cppTypes.length > 0))) {
@@ -1263,14 +1265,14 @@ public class Parser {
         if (!using && info != null) {
             valueType = (info.enumerate || info.valueTypes != null)
                     && ((type.constValue && dcl.indirections == 0 && dcl.reference)
-                        || (dcl.indirections == 0 && !dcl.reference)
-                        || info.pointerTypes == null);
+                    || (dcl.indirections == 0 && !dcl.reference)
+                    || info.pointerTypes == null);
             implicitConst = info.cppNames[0].startsWith("const ") && !info.define;
             infoLength = valueType ? (info.valueTypes != null ? info.valueTypes.length : 1)
-                                   : (info.pointerTypes != null ? info.pointerTypes.length : 1);
+                    : (info.pointerTypes != null ? info.pointerTypes.length : 1);
             dcl.infoNumber = infoNumber < 0 ? 0 : infoNumber % infoLength;
             type.javaName = valueType ? (info.valueTypes != null ? info.valueTypes[dcl.infoNumber] : type.javaName)
-                                      : (info.pointerTypes != null ? info.pointerTypes[dcl.infoNumber] : type.javaName);
+                    : (info.pointerTypes != null ? info.pointerTypes[dcl.infoNumber] : type.javaName);
             type.javaName = context.shorten(type.javaName);
             needCast |= info.cast && !type.cppName.equals(type.javaName);
         }
@@ -1462,20 +1464,20 @@ public class Parser {
                             "    static { Loader.load(); }\n" +
                             "    /** Pointer cast constructor. Invokes {@link Pointer#Pointer(Pointer)}. */\n" +
                             "    public    " + functionType + "(Pointer p) { super(p); }\n" +
-                        (groupInfo != null ? "" :
-                            "    protected " + functionType + "() { allocate(); }\n" +
-                            "    private native void allocate();\n");
+                            (groupInfo != null ? "" :
+                                    "    protected " + functionType + "() { allocate(); }\n" +
+                                            "    private native void allocate();\n");
                     if (fieldPointer) {
                         definition.text +=
-                            "    public native " + type.annotations + type.javaName + " get(" + groupInfo.pointerTypes[0] + " o);\n" +
-                            "    public native " + functionType + " put(" + groupInfo.pointerTypes[0] + " o, " + type.annotations + type.javaName + " v);\n" +
-                            "}\n";
+                                "    public native " + type.annotations + type.javaName + " get(" + groupInfo.pointerTypes[0] + " o);\n" +
+                                        "    public native " + functionType + " put(" + groupInfo.pointerTypes[0] + " o, " + type.annotations + type.javaName + " v);\n" +
+                                        "}\n";
                     } else {
                         definition.text +=
-                            "    public native " + type.annotations + type.javaName + " call" +
-                        (groupInfo != null ? "(" + groupInfo.pointerTypes[0] + " o" + (dcl.parameters.list.charAt(1) == ')' ?
-                                ")" : ", " + dcl.parameters.list.substring(1)) : dcl.parameters.list) + ";\n" +
-                            "}\n";
+                                "    public native " + type.annotations + type.javaName + " call" +
+                                        (groupInfo != null ? "(" + groupInfo.pointerTypes[0] + " o" + (dcl.parameters.list.charAt(1) == ')' ?
+                                                ")" : ", " + dcl.parameters.list.substring(1)) : dcl.parameters.list) + ";\n" +
+                                        "}\n";
                     }
                 }
                 definition.signature = functionType;
@@ -1526,7 +1528,9 @@ public class Parser {
         return dcl;
     }
 
-    /** Tries to adapt a Doxygen-style documentation comment to Javadoc-style. */
+    /**
+     * Tries to adapt a Doxygen-style documentation comment to Javadoc-style.
+     */
     String commentDoc(String s, int startIndex) {
         if (startIndex < 0 || startIndex > s.length()) {
             return s;
@@ -1593,7 +1597,7 @@ public class Parser {
                             sbuf.append(' ');
                         }
                         sb.replace(index + matcher.start(),
-                                   index + 1 + matcher.end(), sbuf.toString());
+                                index + 1 + matcher.end(), sbuf.toString());
                         index += sbuf.length() - 1;
                         tagFound = true;
                         break;
@@ -1614,8 +1618,10 @@ public class Parser {
         return sb.toString();
     }
 
-    /** Converts Doxygen-like documentation comments placed before identifiers to Javadoc-style.
-     *  Also leaves as is non-documentation comments. */
+    /**
+     * Converts Doxygen-like documentation comments placed before identifiers to Javadoc-style.
+     * Also leaves as is non-documentation comments.
+     */
     String commentBefore() throws ParserException {
         String comment = "";
         tokens.raw = true;
@@ -1662,7 +1668,9 @@ public class Parser {
         return commentDoc(comment, startDoc);
     }
 
-    /** Converts Doxygen-like documentation comments placed after identifiers to Javadoc-style. */
+    /**
+     * Converts Doxygen-like documentation comments placed after identifiers to Javadoc-style.
+     */
     String commentAfter() throws ParserException {
         String comment = "";
         tokens.raw = true;
@@ -1710,6 +1718,7 @@ public class Parser {
     Attribute attribute() throws ParserException {
         return attribute(false);
     }
+
     Attribute attribute(boolean explicit) throws ParserException {
         boolean brackets = false;
         if (tokens.get().match("[[")) {
@@ -2250,7 +2259,7 @@ public class Parser {
             // add @Virtual annotation on user request only, inherited through context
             if (type.virtual && context.virtualize) {
                 modifiers = "@Virtual" + (decl.abstractMember ? "(true) " : " ")
-                          + (context.inaccessible ? "protected native " : "public native ");
+                        + (context.inaccessible ? "protected native " : "public native ");
             }
 
             // compose the text of the declaration with the info we got up until this point
@@ -2266,7 +2275,7 @@ public class Parser {
             }
             if (type.constructor && params != null) {
                 decl.text += "public " + context.shorten(context.javaName) + dcl.parameters.list + " { super((Pointer)null); allocate" + params.names + "; }\n" +
-                             type.annotations + "private native void allocate" + dcl.parameters.list + ";\n";
+                        type.annotations + "private native void allocate" + dcl.parameters.list + ";\n";
             } else {
                 decl.text += modifiers + type.annotations + context.shorten(type.javaName) + " " + dcl.javaName + dcl.parameters.list + ";\n";
             }
@@ -2384,7 +2393,7 @@ public class Parser {
                     if (i > 0) {
                         indices += ", ";
                     }
-                    indices += "int " + (char)('i' + i);
+                    indices += "int " + (char) ('i' + i);
                 }
                 if (context.namespace != null && context.javaName == null) {
                     decl.text += "@Namespace(\"" + context.namespace + "\") ";
@@ -2400,7 +2409,7 @@ public class Parser {
                     decl.text += "@MemberGetter ";
                 }
                 decl.text += modifiers + dcl.type.annotations.replace("@ByVal ", "@ByRef ")
-                          + dcl.type.javaName + " " + javaName + "(" + indices + ");";
+                        + dcl.type.javaName + " " + javaName + "(" + indices + ");";
                 if (!(dcl.type.constValue && dcl.indirections == 0) && !dcl.constPointer && !dcl.type.constExpr) {
                     if (indices.length() > 0) {
                         indices += ", ";
@@ -2427,7 +2436,7 @@ public class Parser {
                     if (i > 0) {
                         indices += ", ";
                     }
-                    indices += "int " + (char)('i' + i);
+                    indices += "int " + (char) ('i' + i);
                 }
                 if (context.namespace != null && context.javaName == null) {
                     decl.text += "@Namespace(\"" + context.namespace + "\") ";
@@ -2445,7 +2454,7 @@ public class Parser {
                     decl.text += "@MemberGetter ";
                 }
                 decl.text += modifiers + dcl.type.annotations.replace("@ByVal ", "@ByRef ")
-                          + dcl.type.javaName + " " + javaName + "(" + indices + ");";
+                        + dcl.type.javaName + " " + javaName + "(" + indices + ");";
                 if (!dcl.type.constValue && !dcl.constPointer && !(dcl2.indirections < 2) && !dcl2.type.constExpr) {
                     if (indices.length() > 0) {
                         indices += ", ";
@@ -2514,7 +2523,7 @@ public class Parser {
             Token first = tokens.next();
             boolean hasArgs = first.spacing.length() == 0 && first.match('(');
             List<Info> infoList = infoMap.get(macroName);
-            for (Info info : infoList.size() > 0 ? infoList : Arrays.asList(new Info[] { null })) {
+            for (Info info : infoList.size() > 0 ? infoList : Arrays.asList(new Info[]{null})) {
                 if (info != null && info.skip) {
                     break;
                 } else if ((info == null && (hasArgs || beginIndex + 1 == endIndex))
@@ -2593,11 +2602,20 @@ public class Parser {
                     boolean translate = true;
                     for (Token token = tokens.get(); tokens.index < lastIndex; token = tokens.next()) {
                         if (token.match(Token.STRING)) {
-                            cppType = "const char*"; type = "String"; cat = " + "; break;
+                            cppType = "const char*";
+                            type = "String";
+                            cat = " + ";
+                            break;
                         } else if (token.match(Token.FLOAT)) {
-                            cppType = "double"; type = "double"; cat = ""; break;
+                            cppType = "double";
+                            type = "double";
+                            cat = "";
+                            break;
                         } else if (token.match(Token.INTEGER) && token.value.endsWith("L")) {
-                            cppType = "long long"; type = "long"; cat = ""; break;
+                            cppType = "long long";
+                            type = "long";
+                            cat = "";
+                            break;
                         } else if ((prevToken.match(Token.IDENTIFIER, '>') && token.match(Token.IDENTIFIER, '(')) || token.match('{', '}')) {
                             translate = false;
                         } else if (token.match(Token.IDENTIFIER)) {
@@ -2614,7 +2632,8 @@ public class Parser {
                             Declarator dcl = new Parser(this, info.cppTypes[0]).declarator(context, null, -1, false, 0, false, true);
                             if (!dcl.type.javaName.equals("int")) {
                                 cppType = dcl.type.cppName;
-                                type = dcl.type.annotations + (info.pointerTypes != null ? info.pointerTypes[0] : dcl.type.javaName);;
+                                type = dcl.type.annotations + (info.pointerTypes != null ? info.pointerTypes[0] : dcl.type.javaName);
+                                ;
                             }
                         }
                         for (int i = 0; i < info.cppNames.length; i++) {
@@ -2638,11 +2657,14 @@ public class Parser {
                         value = translate(value);
                         if (type.equals("int")) {
                             if (value.contains("(String)")) {
-                                cppType = "const char*"; type = "String";
+                                cppType = "const char*";
+                                type = "String";
                             } else if (value.contains("(float)") || value.contains("(double)")) {
-                                cppType = "double"; type = "double";
+                                cppType = "double";
+                                type = "double";
                             } else if (value.contains("(long)")) {
-                                cppType = "long long"; type = "long";
+                                cppType = "long long";
+                                type = "long";
                             } else {
                                 try {
                                     String trimmedValue = value.trim();
@@ -2651,7 +2673,9 @@ public class Parser {
                                         // probably some unsigned value, so let's just cast to int
                                         value = value.substring(0, value.length() - trimmedValue.length()) + "(int)" + trimmedValue + "L";
                                     } else if (longValue > Integer.MAX_VALUE || longValue < Integer.MIN_VALUE) {
-                                        cppType = "long long"; type = "long"; value += "L";
+                                        cppType = "long long";
+                                        type = "long";
+                                        value += "L";
                                     }
                                 } catch (NumberFormatException e) {
                                     // leave as int?
@@ -2777,11 +2801,11 @@ public class Parser {
                     }
                     decl.type = new Type(dcl.javaName);
                     decl.text += "@Opaque public static class " + dcl.javaName + " extends Pointer {\n" +
-                                 "    /** Empty constructor. Calls {@code super((Pointer)null)}. */\n" +
-                                 "    public " + dcl.javaName + "() { super((Pointer)null); }\n" +
-                                 "    /** Pointer cast constructor. Invokes {@link Pointer#Pointer(Pointer)}. */\n" +
-                                 "    public " + dcl.javaName + "(Pointer p) { super(p); }\n" +
-                                 "}";
+                            "    /** Empty constructor. Calls {@code super((Pointer)null)}. */\n" +
+                            "    public " + dcl.javaName + "() { super((Pointer)null); }\n" +
+                            "    /** Pointer cast constructor. Invokes {@link Pointer#Pointer(Pointer)}. */\n" +
+                            "    public " + dcl.javaName + "(Pointer p) { super(p); }\n" +
+                            "}";
                 }
             } else {
                 // point back to original type
@@ -2808,7 +2832,7 @@ public class Parser {
                         info.cppNames(defName, s).cppTypes(s);
                     }
                     if (info.valueTypes == null && dcl.indirections > 0) {
-                        info.valueTypes(info.pointerTypes != null ? info.pointerTypes : new String[] {typeName});
+                        info.valueTypes(info.pointerTypes != null ? info.pointerTypes : new String[]{typeName});
                         info.pointerTypes("PointerPointer");
                     } else if (info.pointerTypes == null) {
                         info.pointerTypes(typeName);
@@ -3083,11 +3107,11 @@ public class Parser {
             }
             decl.type = new Type(name);
             decl.text += "@Opaque public static class " + name + " extends " + base.javaName + " {\n" +
-                         "    /** Empty constructor. Calls {@code super((Pointer)null)}. */\n" +
-                         "    public " + name + "() { super((Pointer)null); }\n" +
-                         "    /** Pointer cast constructor. Invokes {@link Pointer#Pointer(Pointer)}. */\n" +
-                         "    public " + name + "(Pointer p) { super(p); }\n" +
-                         "}";
+                    "    /** Empty constructor. Calls {@code super((Pointer)null)}. */\n" +
+                    "    public " + name + "() { super((Pointer)null); }\n" +
+                    "    /** Pointer cast constructor. Invokes {@link Pointer#Pointer(Pointer)}. */\n" +
+                    "    public " + name + "(Pointer p) { super(p); }\n" +
+                    "}";
             decl.type = type;
             decl.incomplete = true;
             String comment = commentAfter();
@@ -3194,20 +3218,20 @@ public class Parser {
                 base.javaName = info.base;
             }
             decl.text += modifiers + "class " + shortName + " extends " + base.javaName + " {\n" +
-                         "    static { Loader.load(); }\n";
+                    "    static { Loader.load(); }\n";
 
             if (implicitConstructor && (info == null || !info.purify) && (!abstractClass || ctx.virtualize)) {
                 constructors += "    /** Default native constructor. */\n" +
-                             "    public " + shortName + "() { super((Pointer)null); allocate(); }\n" +
-                             "    /** Native array allocator. Access with {@link Pointer#position(long)}. */\n" +
-                             "    public " + shortName + "(long size) { super((Pointer)null); allocateArray(size); }\n" +
-                             "    /** Pointer cast constructor. Invokes {@link Pointer#Pointer(Pointer)}. */\n" +
-                             "    public " + shortName + "(Pointer p) { super(p); }\n" +
-                             "    private native void allocate();\n" +
-                             "    private native void allocateArray(long size);\n" +
-                             "    @Override public " + shortName + " position(long position) {\n" +
-                             "        return (" + shortName + ")super.position(position);\n" +
-                             "    }\n";
+                        "    public " + shortName + "() { super((Pointer)null); allocate(); }\n" +
+                        "    /** Native array allocator. Access with {@link Pointer#position(long)}. */\n" +
+                        "    public " + shortName + "(long size) { super((Pointer)null); allocateArray(size); }\n" +
+                        "    /** Pointer cast constructor. Invokes {@link Pointer#Pointer(Pointer)}. */\n" +
+                        "    public " + shortName + "(Pointer p) { super(p); }\n" +
+                        "    private native void allocate();\n" +
+                        "    private native void allocateArray(long size);\n" +
+                        "    @Override public " + shortName + " position(long position) {\n" +
+                        "        return (" + shortName + ")super.position(position);\n" +
+                        "    }\n";
             } else {
                 if ((info == null || !info.purify) && (!abstractClass || ctx.virtualize)) {
                     constructors += inheritedConstructors;
@@ -3215,15 +3239,15 @@ public class Parser {
 
                 if (!pointerConstructor) {
                     constructors += "    /** Pointer cast constructor. Invokes {@link Pointer#Pointer(Pointer)}. */\n" +
-                                 "    public " + shortName + "(Pointer p) { super(p); }\n";
+                            "    public " + shortName + "(Pointer p) { super(p); }\n";
                 }
                 if (defaultConstructor && (info == null || !info.purify) && (!abstractClass || ctx.virtualize) && !arrayConstructor) {
                     constructors += "    /** Native array allocator. Access with {@link Pointer#position(long)}. */\n" +
-                                 "    public " + shortName + "(long size) { super((Pointer)null); allocateArray(size); }\n" +
-                                 "    private native void allocateArray(long size);\n" +
-                                 "    @Override public " + shortName + " position(long position) {\n" +
-                                 "        return (" + shortName + ")super.position(position);\n" +
-                                 "    }\n";
+                            "    public " + shortName + "(long size) { super((Pointer)null); allocateArray(size); }\n" +
+                            "    private native void allocateArray(long size);\n" +
+                            "    @Override public " + shortName + " position(long position) {\n" +
+                            "        return (" + shortName + ")super.position(position);\n" +
+                            "    }\n";
                 }
             }
             decl.text += constructors;
@@ -3326,7 +3350,7 @@ public class Parser {
         String countPrefix = "";
         String enumerators = "";
         String enumerators2 = "";
-        HashMap<String,String> enumeratorMap = new HashMap<String,String>();
+        HashMap<String, String> enumeratorMap = new HashMap<String, String>();
         String extraText = "";
         String name = "";
         Token token = tokens.next().expect(Token.IDENTIFIER, '{', ':', ';');
@@ -3424,7 +3448,7 @@ public class Parser {
                             separator = ";";
                         }
                         String annotations = "";
-                        if (!javaName.equals(cppName)){
+                        if (!javaName.equals(cppName)) {
                             annotations += "@Name(\"" + cppName + "\") ";
                         } else if (context.namespace != null && context.javaName == null) {
                             annotations += "@Namespace(\"" + context.namespace + "\") ";
@@ -3531,21 +3555,21 @@ public class Parser {
             if (enumerate && javaName != null && javaName.length() > 0 && !javaName.equals(javaType)) {
                 String fullName = context.namespace != null ? context.namespace + "::" + name : name;
                 String annotations = "";
-                if (!fullName.equals(cppName)){
+                if (!fullName.equals(cppName)) {
                     annotations += "@Name(\"" + cppName + "\") ";
                 } else if (context.namespace != null && context.javaName == null) {
                     annotations += "@Namespace(\"" + context.namespace + "\") ";
                 }
                 String shortName = javaName.substring(javaName.lastIndexOf('.') + 1);
                 decl.text += enumSpacing + annotations + "public enum " + shortName + " {"
-                          +  enumerators2 + token.expect(';').spacing + ";"
-                          + (comment.length() > 0 && comment.charAt(0) == ' ' ? comment.substring(1) : comment) + "\n\n"
-                          +  enumSpacing2 + "    public final " + javaType + " value;\n"
-                          +  enumSpacing2 + "    private " + shortName  + "(" + javaType + " v) { this.value = v; }\n"
-                          +  enumSpacing2 + "    private " + shortName  + "(" + shortName + " e) { this.value = e.value; }\n"
-                          +  enumSpacing2 + "    public " + shortName + " intern() { for (" + shortName + " e : values()) if (e.value == value) return e; return this; }\n"
-                          +  enumSpacing2 + "    @Override public String toString() { return intern().name(); }\n"
-                          +  enumSpacing2 + "}";
+                        + enumerators2 + token.expect(';').spacing + ";"
+                        + (comment.length() > 0 && comment.charAt(0) == ' ' ? comment.substring(1) : comment) + "\n\n"
+                        + enumSpacing2 + "    public final " + javaType + " value;\n"
+                        + enumSpacing2 + "    private " + shortName + "(" + javaType + " v) { this.value = v; }\n"
+                        + enumSpacing2 + "    private " + shortName + "(" + shortName + " e) { this.value = e.value; }\n"
+                        + enumSpacing2 + "    public " + shortName + " intern() { for (" + shortName + " e : values()) if (e.value == value) return e; return this; }\n"
+                        + enumSpacing2 + "    @Override public String toString() { return intern().name(); }\n"
+                        + enumSpacing2 + "}";
                 info2 = new Info(infoMap.getFirst(cppType)).cppNames(cppName);
                 info2.valueTypes = Arrays.copyOf(info2.valueTypes, info2.valueTypes.length + 1);
                 for (int i = 1; i < info2.valueTypes.length; i++) {
@@ -3559,7 +3583,7 @@ public class Parser {
                 infoMap.put(info2.cast(false).enumerate());
             } else {
                 decl.text += enumSpacing + "/** " + enumType + " " + cppName + " */\n"
-                          +  enumSpacing2 + enumerators + token.expect(';').spacing + ";";
+                        + enumSpacing2 + enumerators + token.expect(';').spacing + ";";
                 if (cppName.length() > 0) {
                     info2 = infoMap.getFirst(cppType);
                     infoMap.put(new Info(info2).cast().cppNames(cppName));
@@ -3673,7 +3697,7 @@ public class Parser {
                         continue;
                     }
                     int count = 0;
-                    for (Map.Entry<String,Type> e : map.entrySet()) {
+                    for (Map.Entry<String, Type> e : map.entrySet()) {
                         if (count < type.arguments.length) {
                             Type t = type.arguments[count++];
                             String s = t.cppName;
@@ -3727,11 +3751,11 @@ public class Parser {
         }
     }
 
-    void parse(Context context,
-               DeclarationList declList,
-               String[] includePath,
-               String include,
-               boolean isCFile) throws IOException, ParserException {
+    protected void parse(Context context,
+                         DeclarationList declList,
+                         String[] includePath,
+                         String include,
+                         boolean isCFile) throws IOException, ParserException {
         List<Token> tokenList = new ArrayList<Token>();
         File file = null;
         String filename = include;
@@ -3795,6 +3819,7 @@ public class Parser {
     public File[] parse(String outputDirectory, String[] classPath, Class cls) throws IOException, ParserException {
         return parse(new File(outputDirectory), classPath, cls);
     }
+
     public File[] parse(File outputDirectory, String[] classPath, Class cls) throws IOException, ParserException {
         ClassProperties allProperties = Loader.loadProperties(cls, properties, true);
         ClassProperties clsProperties = Loader.loadProperties(cls, properties, false);
@@ -3826,23 +3851,23 @@ public class Parser {
         infoMap = new InfoMap();
         for (Class c : allInherited) {
             try {
-                InfoMapper infoMapper = ((InfoMapper)c.newInstance());
+                InfoMapper infoMapper = ((InfoMapper) c.newInstance());
                 if (infoMapper instanceof BuildEnabled) {
-                    ((BuildEnabled)infoMapper).init(logger, properties, encoding);
+                    ((BuildEnabled) infoMapper).init(logger, properties, encoding);
                 }
                 infoMapper.map(infoMap);
-            } catch (ClassCastException |  InstantiationException | IllegalAccessException e) {
+            } catch (ClassCastException | InstantiationException | IllegalAccessException e) {
                 // fail silently as if the interface wasn't implemented
             }
         }
         leafInfoMap = new InfoMap();
         try {
-            InfoMapper infoMapper = ((InfoMapper)cls.newInstance());
+            InfoMapper infoMapper = ((InfoMapper) cls.newInstance());
             if (infoMapper instanceof BuildEnabled) {
-                ((BuildEnabled)infoMapper).init(logger, properties, encoding);
+                ((BuildEnabled) infoMapper).init(logger, properties, encoding);
             }
             infoMapper.map(leafInfoMap);
-        } catch (ClassCastException |  InstantiationException | IllegalAccessException e) {
+        } catch (ClassCastException | InstantiationException | IllegalAccessException e) {
             // fail silently as if the interface wasn't implemented
         }
         infoMap.putAll(leafInfoMap);
@@ -3855,7 +3880,7 @@ public class Parser {
         String text = "";
         String header = "// Targeted by JavaCPP version " + version + ": DO NOT EDIT THIS FILE\n\n";
         String targetHeader = header + "package " + target + ";\n\n";
-        String globalHeader = header + (n >= 0 ? "package " + global.substring(0, n) + ";\n\n": "");
+        String globalHeader = header + (n >= 0 ? "package " + global.substring(0, n) + ";\n\n" : "");
         List<Info> infoList = leafInfoMap.get(null);
         boolean objectify = false;
         for (Info info : infoList) {
@@ -3868,15 +3893,15 @@ public class Parser {
             globalHeader += "import " + target + ".*;\n\n";
         }
         text += "import java.nio.*;\n"
-             +  "import org.bytedeco.javacpp.*;\n"
-             +  "import org.bytedeco.javacpp.annotation.*;\n\n";
+                + "import org.bytedeco.javacpp.*;\n"
+                + "import org.bytedeco.javacpp.annotation.*;\n\n";
         for (int i = 0; i < allTargets.size(); i++) {
             if (!target.equals(allTargets.get(i))) {
                 if (allTargets.get(i).equals(allGlobals.get(i))) {
                     text += "import static " + allTargets.get(i) + ".*;\n";
                 } else {
                     text += "import " + allTargets.get(i) + ".*;\n"
-                         +  "import static " + allGlobals.get(i) + ".*;\n";
+                            + "import static " + allGlobals.get(i) + ".*;\n";
                 }
             }
         }
@@ -3884,8 +3909,8 @@ public class Parser {
             text += "\n";
         }
         String globalText = globalHeader + text + "public class " + global.substring(n + 1) + " extends "
-             + (clsHelpers.size() > 0 && clsIncludes.size() > 0 ? clsHelpers.get(0) : cls.getCanonicalName()) + " {\n"
-             + "    static { Loader.load(); }\n";
+                + (clsHelpers.size() > 0 && clsIncludes.size() > 0 ? clsHelpers.get(0) : cls.getCanonicalName()) + " {\n"
+                + "    static { Loader.load(); }\n";
 
         String targetPath = target.replace('.', File.separatorChar);
         String globalPath = global.replace('.', File.separatorChar);
@@ -3950,7 +3975,7 @@ public class Parser {
         }
         ArrayList<File> outputFiles = new ArrayList<File>(Arrays.asList(globalFile));
         try (Writer out = encoding != null ? new EncodingFileWriter(globalFile, encoding, lineSeparator)
-                                           : new EncodingFileWriter(globalFile, lineSeparator)) {
+                : new EncodingFileWriter(globalFile, lineSeparator)) {
             out.append(globalText);
             for (Info info : infoList) {
                 if (info.javaText != null && !info.javaText.startsWith("import")) {
@@ -3971,8 +3996,8 @@ public class Parser {
                     String javaText = targetHeader + text + "import static " + global + ".*;\n"
                             + (prevd != null && prevd.comment ? prevd.text : "")
                             + d.text.replace("public static class " + shortName + " ",
-                                    "@Properties(inherit = " + cls.getCanonicalName() + ".class)\n"
-                                  + "public class " + shortName + " ") + "\n";
+                            "@Properties(inherit = " + cls.getCanonicalName() + ".class)\n"
+                                    + "public class " + shortName + " ") + "\n";
                     outputFiles.add(javaFile);
                     Files.write(javaFile.toPath(), encoding != null ? javaText.getBytes(encoding) : javaText.getBytes());
                     prevd = null;
