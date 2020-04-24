@@ -36,14 +36,15 @@ import java.util.jar.JarFile;
  * Given a {@link UserClassLoader}, attempts to match and fill in a {@link Collection}
  * of {@link Class}, in various ways in which users may wish to do so.
  */
-class ClassScanner {
-    ClassScanner(Logger logger, Collection<Class> classes, UserClassLoader loader) {
+public class ClassScanner {
+    public ClassScanner(Logger logger, Collection<Class> classes, UserClassLoader loader) {
         this(logger, classes, loader, null);
     }
-    ClassScanner(Logger logger, Collection<Class> classes, UserClassLoader loader, ClassFilter classFilter) {
-        this.logger  = logger;
+
+    public ClassScanner(Logger logger, Collection<Class> classes, UserClassLoader loader, ClassFilter classFilter) {
+        this.logger = logger;
         this.classes = classes;
-        this.loader  = loader;
+        this.loader = loader;
         this.classFilter = classFilter;
     }
 
@@ -55,6 +56,7 @@ class ClassScanner {
     public Collection<Class> getClasses() {
         return classes;
     }
+
     public UserClassLoader getClassLoader() {
         return loader;
     }
@@ -63,7 +65,7 @@ class ClassScanner {
         if (className == null) {
             return;
         } else if (className.endsWith(".class")) {
-            className = className.substring(0, className.length()-6);
+            className = className.substring(0, className.length() - 6);
         }
         Class c = Class.forName(className, false, loader);
         addClass(c);
@@ -79,7 +81,7 @@ class ClassScanner {
         if (filename != null && filename.endsWith(".class") && !filename.contains("-") &&
                 (classFilter == null || classFilter.keep(filename, data)) &&
                 (packagePath == null || (recursive && filename.startsWith(packagePath)) ||
-                filename.regionMatches(0, packagePath, 0, Math.max(filename.lastIndexOf('/'), packagePath.lastIndexOf('/'))))) {
+                        filename.regionMatches(0, packagePath, 0, Math.max(filename.lastIndexOf('/'), packagePath.lastIndexOf('/'))))) {
             addClass(filename.replace('/', '.'));
         }
     }
@@ -116,7 +118,7 @@ class ClassScanner {
                         long entryTimestamp = entry.getTime();
                         if (entrySize > 0) {
                             try (InputStream is = jarFile.getInputStream(entry)) {
-                                byte[] data = new byte[(int)entrySize];
+                                byte[] data = new byte[(int) entrySize];
                                 int i = 0;
                                 while (i < data.length) {
                                     int n = is.read(data, i, data.length - i);
@@ -145,9 +147,9 @@ class ClassScanner {
         }
         name = name.replace('/', '.');
         if (name.endsWith(".**")) {
-            addPackage(name.substring(0, name.length()-3), true);
+            addPackage(name.substring(0, name.length() - 3), true);
         } else if (name.endsWith(".*")) {
-            addPackage(name.substring(0, name.length()-2), false);
+            addPackage(name.substring(0, name.length() - 2), false);
         } else {
             addClass(name);
         }
